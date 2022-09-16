@@ -119,5 +119,15 @@ def main():
     trainer = BC_Trainer(params)
     trainer.run_training_loop()
 
+    ####################
+    ### Mohsen's modifications (for visualization purposes only)
+    ####################
+    import pandas as pd
+
+    progress = pd.DataFrame.from_dict(trainer.rl_trainer.history)
+    progress.to_csv(os.path.join(logdir, 'progress.csv'), sep=',', index=False)
+
+    print('progress saved!')
+
 if __name__ == "__main__":
     main()

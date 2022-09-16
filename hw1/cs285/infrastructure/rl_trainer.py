@@ -136,7 +136,7 @@ class RL_Trainer(object):
                 # perform logging
                 print('\nBeginning logging procedure...')
                 self.perform_logging(
-                    itr, paths, eval_policy, train_video_paths, training_logs)
+                    itr, paths, eval_policy, train_video_paths, training_logs, expert_policy=expert_policy)
 
                 if self.params['save_params']:
                     print('\nSaving agent params')
@@ -184,10 +184,6 @@ class RL_Trainer(object):
                                                                max_path_length=self.params['ep_len'],
                                                                )
 
-        if itr % self.params['video_log_freq'] == 0 and self.params['video_log_freq'] != -1:
-            paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, MAX_NVIDEO,
-                                                                   self.params['ep_len'], render=True)
-
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
         train_video_paths = None
@@ -202,6 +198,7 @@ class RL_Trainer(object):
     def train_agent(self):
         print('\nTraining agent using sampled data from replay buffer...')
         all_logs = []
+
         for train_step in range(self.params['num_agent_train_steps_per_iter']):
             # TODO sample some data from the data buffer
             # HINT1: use the agent's sample function
@@ -213,7 +210,9 @@ class RL_Trainer(object):
             # HINT: use the agent's train function
             # HINT: keep the agent's training log for debugging
             train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
+
             all_logs.append(train_log)
+
         return all_logs
 
     def do_relabel_with_expert(self, expert_policy, paths):
@@ -231,8 +230,7 @@ class RL_Trainer(object):
     ####################################
     ####################################
 
-    def perform_logging(self, itr, paths, eval_policy, train_video_paths, training_logs):
-
+    def perform_logging(self, itr, paths, eval_policy, train_video_paths, training_logs, expert_policy=None):
         # collect eval trajectories, for logging
         print("\nCollecting data for eval...")
         eval_paths, eval_envsteps_this_batch = utils.sample_trajectories(self.env, eval_policy,
@@ -247,9 +245,9 @@ class RL_Trainer(object):
             # save train/eval videos
             print('\nSaving train rollouts as videos...')
             self.logger.log_paths_as_videos(train_video_paths, itr, fps=self.fps, max_videos_to_save=MAX_NVIDEO,
-                                            video_title='train_rollouts')
+                                            video_title=f'train_rollouts_{itr}')
             self.logger.log_paths_as_videos(eval_video_paths, itr, fps=self.fps, max_videos_to_save=MAX_NVIDEO,
-                                            video_title='eval_rollouts')
+                                            video_title=f'eval_rollouts_{itr}')
 
         # save eval metrics
         if self.log_metrics:
@@ -263,6 +261,7 @@ class RL_Trainer(object):
 
             # decide what to log
             logs = OrderedDict()
+            logs['Iteration'] = itr
             logs["Eval_AverageReturn"] = np.mean(eval_returns)
             logs["Eval_StdReturn"] = np.std(eval_returns)
             logs["Eval_MaxReturn"] = np.max(eval_returns)
@@ -280,15 +279,48 @@ class RL_Trainer(object):
             last_log = training_logs[-1]  # Only use the last log for now
             logs.update(last_log)
 
+            logs['step'] = [i for i in range(len(training_logs))]
+
+            for i, log in enumerate(training_logs):
+                for key, value in log.items():
+                    if i == 0:
+                        logs[f'{key}_step'] = [value]
+                    else:
+                        logs[f'{key}_step'].append(value)
+
             if itr == 0:
                 self.initial_return = np.mean(train_returns)
             logs["Initial_DataCollection_AverageReturn"] = self.initial_return
 
+            # Mohsen: Added performance evaluation compared to expert policy
+            if expert_policy:
+                expert_paths, _ = utils.sample_trajectories(self.env, expert_policy,
+                                                            self.params['eval_batch_size'],
+                                                            self.params['ep_len'])
+
+                expert_returns = [path['reward'].sum() for path in expert_paths]
+                expert_ep_lens = [len(path["reward"]) for path in eval_paths]
+
+                logs['Expert_AverageReturn'] = np.mean(expert_returns)
+                logs['Expert_StdReturn'] = np.std(expert_returns)
+                logs['Expert_MaxReturn'] = np.max(expert_returns)
+                logs['Expert_MinReturn'] = np.min(expert_returns)
+                logs['Expert_AverageEpLen'] = np.mean(expert_ep_lens)
+
+                accuracy = utils.get_accuracy(y_true=expert_returns, y_pred=eval_returns)
+
+                logs['Agent_Accuracy'] = accuracy
+
             # perform the logging
             for key, value in logs.items():
-                print('{} : {}'.format(key, value))
-                self.logger.log_scalar(value, key, itr)
-                self.history[key].append(value)
+                if not key.endswith('step'):
+                    print('{} : {}'.format(key, value))
+                    self.logger.log_scalar(value, key, itr)
+                    self.history[key].append(value)
+                else:
+                    for i, val in enumerate(value):
+                        self.logger.log_scalar(val, key, i)
+
             print('Done logging...\n\n')
 
             self.logger.flush()

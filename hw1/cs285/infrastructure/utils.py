@@ -124,3 +124,28 @@ def convert_listofrollouts(paths, concat_reward=True):
 
 def get_pathlength(path):
     return len(path["reward"])
+
+
+############################################ Mohsen's functions
+############################################
+
+def get_accuracy(y_true, y_pred):
+    """Computes Regression Accuracy given a threshold of prediction deviation
+
+    Parameters
+    ----------
+
+    y_true: ~numpy.ndarray
+        expert's sum of rewards for different trajectories with shape: (n_trajectories, 1)
+    y_pred: ~numpy.ndarray
+        agent's sum of rewards for different trajectories with shape: (n_trajectories, 1)
+
+    Returns
+    -------
+    computed accuracy: float
+
+    """
+    y_true_mean = np.mean(y_true)
+    abs_deltas = (1.0 - (np.abs(y_pred - y_true_mean) / y_true_mean))
+    acc = np.mean(abs_deltas)
+    return acc

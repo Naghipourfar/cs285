@@ -56,11 +56,11 @@ class BC_Trainer(object):
 
 
 def tune_policy(params):
-    np.random.seed(int(time.time()))
+    np.random.seed(int(time.time() % 1e4))
     args = {
         'ep_len': 1024,
 
-        'num_agent_train_steps_per_iter': int(np.random.choice([32, 64, 128, 256, 512, 1024, 2048])),
+        'num_agent_train_steps_per_iter': int(np.random.choice([2048, 4096, 8192, 10000])),
         'n_iter': 1 if not params['do_dagger'] else int(np.random.choice([3, 5, 10, 15, 20, 25, 50])),
 
         'batch_size': int(np.random.choice([128, 256, 512, 1024, 2048, 4096])),
@@ -77,7 +77,7 @@ def tune_policy(params):
         'which_gpu': 0,
         'max_replay_buffer_size': 1000000,
         'save_params': False,
-        'seed': int(np.random.randint(1, 2022)),
+        'seed': int(time.time() % 1e4),
     }
 
     np.random.seed(args['seed'])
