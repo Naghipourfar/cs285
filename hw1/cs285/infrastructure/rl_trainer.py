@@ -323,4 +323,6 @@ class RL_Trainer(object):
 
             print('Done logging...\n\n')
 
+
+
             self.logger.flush()
