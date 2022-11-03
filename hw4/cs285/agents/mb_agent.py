@@ -1,3 +1,5 @@
+import numpy as np
+
 from .base_agent import BaseAgent
 from cs285.models.ff_model import FFModel
 from cs285.policies.MPC_policy import MPCPolicy
@@ -39,26 +41,26 @@ class MBAgent(BaseAgent):
         self.replay_buffer = ReplayBuffer()
 
     def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):
-
         # training a MB agent refers to updating the predictive model using observed state transitions
         # NOTE: each model in the ensemble is trained on a different random batch of size batch_size
         losses = []
         num_data = ob_no.shape[0]
         num_data_per_ens = int(num_data / self.ensemble_size)
+        data_indices = np.arange(num_data)
+        np.random.shuffle(data_indices)
 
         for i in range(self.ensemble_size):
-
             # select which datapoints to use for this model of the ensemble
             # you might find the num_data_per_env variable defined above useful
-
-            observations = # TODO(Q1)
-            actions = # TODO(Q1)
-            next_observations = # TODO(Q1)
+            ens_indices = range(i * num_data_per_ens, (i + 1) * num_data_per_ens)
+            observations = ob_no[data_indices[ens_indices]]  # TODO(Q1)
+            actions = ac_na[data_indices[ens_indices]] # TODO(Q1)
+            next_observations = next_ob_no[data_indices[ens_indices]]# TODO(Q1)
 
             # use datapoints to update one of the dyn_models
-            model =  # TODO(Q1)
+            model = self.dyn_models[i] # TODO(Q1)
             log = model.update(observations, actions, next_observations,
-                                self.data_statistics)
+                               self.data_statistics)
             loss = log['Training Loss']
             losses.append(loss)
 

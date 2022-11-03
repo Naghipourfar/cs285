@@ -3,9 +3,6 @@ import torch
 import numpy as np
 from cs285.infrastructure import sac_utils
 from cs285.infrastructure import pytorch_util as ptu
-from torch import nn
-from torch import optim
-import itertools
 
 
 class MLPPolicySAC(MLPPolicy):

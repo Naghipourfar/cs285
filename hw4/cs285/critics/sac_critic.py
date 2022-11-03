@@ -62,7 +62,8 @@ class SACCritic(nn.Module, BaseCritic):
 
     def forward_np(self, obs: np.ndarray, action: np.ndarray):
         obs = ptu.from_numpy(obs)
-        predictions = self(obs)
+        action = ptu.from_numpy(action)
+        predictions = self(obs, action)
         return ptu.to_numpy(predictions)
 
 
